@@ -1,3 +1,12 @@
 export default eventHandler(() => {
-  return <h1>Hello World</h1>;
+  return (
+    <html>
+      <head>
+        <title>Nitro + React RSC</title>
+      </head>
+      <body>
+        <h1>Hello World</h1>
+      </body>
+    </html>
+  );
 });
