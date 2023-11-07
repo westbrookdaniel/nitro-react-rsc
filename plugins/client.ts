@@ -1,59 +1,65 @@
-import { renderToString } from "react-dom/server";
+import { renderToNodeStream, renderToPipeableStream } from "react-dom/server";
 import { createServer } from "vite";
 import react from "@vitejs/plugin-react";
 import { globSync } from "glob";
 import { createRouter } from "radix3";
+import { H3Event, EventHandlerRequest } from "h3";
 
-const templateMap: Record<string, string> = {};
-const buildTemplate = (clientSrc: string) => `<!DOCTYPE html>
-<html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Nitro + React</title>
-  </head>
-  <body>
-    <!--ssr-outlet-->
-    <script type="module" src="${clientSrc}"></script>
-  </body>
-</html>`;
+export const vite = await createServer({
+  server: { middlewareMode: true },
+  appType: "custom",
+  plugins: [react()],
+});
+
+type RouteData = {
+  Component: any;
+  bootstrapModules: string[];
+  bootstrapScriptContent: string;
+};
 
 export default defineNitroPlugin(async (nitroApp) => {
-  const vite = await createServer({
-    server: { middlewareMode: true },
-    appType: "custom",
-    plugins: [react()],
-  });
-
-  // Vite middleware
-  nitroApp.router.use("/*", fromNodeMiddleware(vite.middlewares));
+  // Fix stack traces
   nitroApp.hooks.hook("error", (error) => vite.ssrFixStacktrace(error));
 
   // Find and prep all the client and server files
   const clientPages = globSync("client/**/page.{js,jsx,ts,tsx}");
-  const router = createRouter<{ Component: any }>();
+  const router = createRouter<RouteData>();
   for (const clientPage of clientPages) {
     const { default: Component } = await vite.ssrLoadModule(clientPage);
     let path = clientPage.replace("client", "").replace(/\/page\.[jt]sx?$/, "");
     if (path === "") path = "/";
-    router.insert(path, { Component });
-    templateMap[path] = await vite.transformIndexHtml(
+    const html = await vite.transformIndexHtml(
       path,
-      buildTemplate(clientPage),
+      `<script type="module" src="${clientPage}"></script>`,
     );
+    router.insert(path, {
+      Component,
+      bootstrapModules: Array.from(
+        html.matchAll(/<script type="module" src="(.*)"><\/script>/g),
+      ).map((m) => m[1]),
+      bootstrapScriptContent: `import RefreshRuntime from "/@react-refresh"
+RefreshRuntime.injectIntoGlobalHook(window)
+window.$RefreshReg$ = () => {}
+window.$RefreshSig$ = () => (type) => type
+window.__vite_plugin_react_preamble_installed__ = true`,
+    });
   }
 
   // SSR render and serve the client page for the route
-  function renderRoute(
-    path: string,
+  async function renderRoute(
+    event: H3Event<EventHandlerRequest>,
     route: ReturnType<typeof router.lookup>,
     data?: any,
   ) {
-    let html = renderToString(route.Component(data));
-    html = templateMap[path].replace("<!--ssr-outlet-->", html);
-    return new Response(html, {
-      headers: { "content-type": "text/html" },
+    console.log(route);
+    const { pipe } = renderToPipeableStream(route.Component({ data }), {
+      bootstrapModules: route.bootstrapModules,
+      bootstrapScriptContent: route.bootstrapScriptContent,
     });
+    event.node.res.setHeader("Content-Type", "text/html");
+    event.node.res.statusCode = 200;
+    // Pipe through and add boostrapScriptContent to <head> then do pipe(event.node.res);
+    pipe(event.node.res);
   }
 
   // Handle routes with no data loaders
@@ -62,7 +68,7 @@ export default defineNitroPlugin(async (nitroApp) => {
     eventHandler(async (event) => {
       if (!event.handled) {
         const route = router.lookup(event.path);
-        if (route) event.respondWith(renderRoute(event.path, route));
+        if (route) await renderRoute(event, route);
       }
     }),
   );
@@ -70,6 +76,6 @@ export default defineNitroPlugin(async (nitroApp) => {
   // Handle routes with data loaders
   nitroApp.hooks.hook("beforeResponse", async (event, response) => {
     const route = router.lookup(event.path);
-    if (route) event.respondWith(renderRoute(event.path, route, response.body));
+    if (route) await renderRoute(event, route, response.body);
   });
 });

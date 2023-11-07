@@ -6,6 +6,8 @@ export default defineNitroConfig({
       jsxFactory: "React.createElement",
       jsxFragment: "React.Fragment",
       jsxImportSource: "react",
+      // Required for top level await (vite server)
+      target: "es2022",
     },
   },
 });

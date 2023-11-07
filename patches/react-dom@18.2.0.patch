@@ -1,0 +1,22 @@
+diff --git a/cjs/react-dom-server.node.development.js b/cjs/react-dom-server.node.development.js
+index be9f8dff9da4563aeba92153d5b6eaafcc8f7cb7..8f39e477b5ca9b8fccb8dcd1931b5f955b13ad87 100644
+--- a/cjs/react-dom-server.node.development.js
++++ b/cjs/react-dom-server.node.development.js
+@@ -1780,7 +1780,7 @@ function isArray(a) {
+   return isArrayImpl(a);
+ }
+ 
+-var startInlineScript = stringToPrecomputedChunk('<script>');
++var startInlineScript = stringToPrecomputedChunk('<script type="module">');
+ var endInlineScript = stringToPrecomputedChunk('</script>');
+ var startScriptSrc = stringToPrecomputedChunk('<script src="');
+ var startModuleSrc = stringToPrecomputedChunk('<script type="module" src="');
+@@ -1813,7 +1813,7 @@ var scriptReplacer = function (match, prefix, s, suffix) {
+ 
+ function createResponseState(identifierPrefix, nonce, bootstrapScriptContent, bootstrapScripts, bootstrapModules) {
+   var idPrefix = identifierPrefix === undefined ? '' : identifierPrefix;
+-  var inlineScriptWithNonce = nonce === undefined ? startInlineScript : stringToPrecomputedChunk('<script nonce="' + escapeTextForBrowser(nonce) + '">');
++  var inlineScriptWithNonce = nonce === undefined ? startInlineScript : stringToPrecomputedChunk('<script nonce="' + escapeTextForBrowser(nonce) + '" type="module">');
+   var bootstrapChunks = [];
+ 
+   if (bootstrapScriptContent !== undefined) {

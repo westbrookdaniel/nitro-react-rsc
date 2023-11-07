@@ -1,5 +1,17 @@
+import { useState } from "react";
 import type { Data } from "../routes";
 
-export default function Home(data: Data) {
-  return <h1>Hello {data.hello}</h1>;
-};
+export default function Home({ data }: { data: Data }) {
+  // const [count, setCount] = useState(0);
+
+  return (
+    <html>
+      <head></head>
+      <body>
+        <h1>Hello {data.hello}</h1>
+      </body>
+    </html>
+  );
+}
+// <p> Count: {count} </p>
+// <button onClick={() => setCount((c) => c++)}>+</button>

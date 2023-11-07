@@ -11,13 +11,17 @@
     "glob": "^10.3.10",
     "nitropack": "latest",
     "radix3": "^1.1.0",
-    "react": "18.3.0-canary-ce2bc58a9-20231102",
-    "react-dom": "18.3.0-canary-ce2bc58a9-20231102",
-    "react-server-dom-webpack": "18.3.0-canary-ce2bc58a9-20231102",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
     "vite": "^4.5.0"
   },
   "devDependencies": {
     "@types/react": "^18.2.36",
     "@types/react-dom": "^18.2.14"
+  },
+  "pnpm": {
+    "patchedDependencies": {
+      "react-dom@18.2.0": "patches/react-dom@18.2.0.patch"
+    }
   }
 }
