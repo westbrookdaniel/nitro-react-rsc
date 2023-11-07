@@ -18,9 +18,6 @@ type RouteData = {
 };
 
 export default defineNitroPlugin(async (nitroApp) => {
-  // Fix stack traces
-  nitroApp.hooks.hook("error", (error) => vite.ssrFixStacktrace(error));
-
   // Find and prep all the client and server files
   const clientPages = globSync("client/**/page.{js,jsx,ts,tsx}");
   const router = createRouter<RouteData>();
@@ -51,15 +48,20 @@ window.__vite_plugin_react_preamble_installed__ = true`,
     route: ReturnType<typeof router.lookup>,
     data?: any,
   ) {
-    console.log(route);
-    const { pipe } = renderToPipeableStream(route.Component({ data }), {
-      bootstrapModules: route.bootstrapModules,
-      bootstrapScriptContent: route.bootstrapScriptContent,
-    });
-    event.node.res.setHeader("Content-Type", "text/html");
-    event.node.res.statusCode = 200;
-    // Pipe through and add boostrapScriptContent to <head> then do pipe(event.node.res);
-    pipe(event.node.res);
+    try {
+      const { pipe } = renderToPipeableStream(route.Component({ data }), {
+        bootstrapModules: route.bootstrapModules,
+        bootstrapScriptContent: route.bootstrapScriptContent,
+      });
+      event.node.res.setHeader("Content-Type", "text/html");
+      event.node.res.statusCode = 200;
+      pipe(event.node.res);
+    } catch (error) {
+      event.node.res.statusCode = 500;
+      vite.ssrFixStacktrace(error);
+      console.error(error);
+      event.node.res.end(error.message);
+    }
   }
 
   // Handle routes with no data loaders
